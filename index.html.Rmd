@@ -1,0 +1,99 @@
+---
+
+title: "Jumlah Items tiap Product Scale"
+author: "shifa"
+date: "`r Sys.Date()`"
+output: html_document
+
+---
+
+
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+
+```{r loadlibrary}
+
+# Memuat paket yang diperlukan untuk koneksi database dan visualisasi
+
+library(DBI)
+library(ggplot2)
+library(scales)
+library(odbc)
+
+```
+
+
+
+# Pendahuluan
+
+Laporan ini menyajikan histogram untuk tiap product scale dari database "classicmodels". Proses ini mengintegrasikan SQL untuk pengambilan data dan R untuk visualisasi.
+
+
+# Koneksi Database dan Pengambilan Data
+
+Langkah pertama adalah membangun koneksi antara RStudio dan database MySQL menggunakan fungsi dbConnect()
+
+
+```{r koneksidata}
+
+con <- DBI::dbConnect(odbc::odbc(),
+Driver = "MySQL ODBC 8.0 ANSI Driver",
+Server = "127.0.0.1",
+Database = "classicmodels",
+UID = "root",
+PWD = "shifalia66", #sesuaikan dg password masing-masing
+Port = 3306)
+```
+
+
+Setelah koneksi terjalin, kita menggunakan blok kode SQL untuk mendapatkan banyaknya item untuk tiap product scale. Simpan data hasil kueri data dalam suatu data frame R.
+
+
+```{r kueri1}
+
+# Mendapatkan data yang diperlukan
+
+query1 = "SELECT o.orderNumber, country, sum(quantityordered*priceEach) as total_value
+FROM orders o
+JOIN orderdetails od ON o.orderNumber=od.orderNumber
+JOIN customers c ON o.customerNumber=c.customerNumber
+WHERE country IN ('Denmark', 'Finland', 'Norway', 'Sweden')
+GROUP BY o.orderNumber"
+
+
+data1 <- dbGetQuery(con, query1)
+
+data1
+
+```
+
+
+# Visualisasi banyaknya item tiap product scale
+
+#Kita menggunakan library ggplot2 untuk membuat histogram. Fungsi geom_histogram() digunakan untuk melihat distribusi frekuensi nilai pesanan.
+
+
+```{r histogram}
+
+# Membuat barchart untuk banyaknya item tiap product scale
+
+ggplot(data1, aes(x = total_value)) +
+ geom_histogram(aes(fill = after_stat(count)), bins = 15, color='white') +
+  stat_bin(bins = 15, geom= "text", 
+           aes(label=after_stat(count)), vjust=-0.5)+
+  scale_fill_gradient(low='lightgreen', high='darkgreen')+
+  scale_x_continuous(labels = label_dollar())+
+  scale_y_continuous(expand = expansion(0,0.15))+
+theme_minimal() +
+labs(title = "Distribusi Nilai Pesanan di Negara Nordic",
+     subtitle = "Negara: Denmark, Finland, Norway, Sweden",
+     x = "Nilai pesanan dalam USD",
+     y = "Frekuensi")+
+theme(legend.position = "none")
+
+```
+
